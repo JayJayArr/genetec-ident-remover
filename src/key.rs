@@ -1,34 +1,34 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyFile {
-    accountId: String,
-    key: Key,
-    clientId: String,
-    clientSecret: String,
-    stsUrl: String,
-    identityServiceUrl: String,
-    principalServiceUrl: String,
-    teamServiceUrl: String,
-    roleServiceUrl: String,
-    identityRequestServiceUrl: String,
-    webhooksServiceUrl: String,
+    pub accountId: String,
+    pub key: Key,
+    pub clientId: String,
+    pub clientSecret: String,
+    pub stsUrl: String,
+    pub identityServiceUrl: String,
+    pub principalServiceUrl: String,
+    pub teamServiceUrl: String,
+    pub roleServiceUrl: String,
+    pub identityRequestServiceUrl: String,
+    pub webhooksServiceUrl: String,
 }
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct Key {
-    kid: String,
-    keyType: String,
-    algorithm: String,
-    exponent: String,
-    modulus: String,
-    d: String,
-    dp: String,
-    dq: String,
-    inverseQ: String,
-    p: String,
-    q: String,
+    pub kid: String,
+    pub keyType: String,
+    pub algorithm: String,
+    pub exponent: String,
+    pub modulus: String,
+    pub d: String,
+    pub dp: String,
+    pub dq: String,
+    pub inverseQ: String,
+    pub p: String,
+    pub q: String,
 }
