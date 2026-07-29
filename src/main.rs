@@ -4,6 +4,8 @@ use clap::Parser;
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
 use oauth2::{TokenResponse, reqwest};
+use tracing::info;
+use tracing::warn;
 mod key;
 mod telemetry;
 
@@ -24,8 +26,11 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     init_tracing()?;
     let args = Args::parse();
-
-    dbg!(&args);
+    if !args.dry_run {
+        warn!(
+            "This runs destructive action, please run with --dry-run before running in non-dry-run mode"
+        )
+    }
 
     let file = tokio::fs::read_to_string(args.keyfile).await.unwrap();
 
@@ -38,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     )
     .await?;
 
-    println!("{:?}", tokenresponse.access_token().secret());
+    info!("Token obtained: {}", tokenresponse.access_token().secret());
     Ok(())
 }
 
@@ -47,6 +52,7 @@ async fn get_api_token(
     client_secret: String,
     endpoint: String,
 ) -> anyhow::Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> {
+    info!("Authenticating with the Genetec API: {}", endpoint);
     let client = BasicClient::new(ClientId::new(client_id))
         .set_client_secret(ClientSecret::new(client_secret))
         .set_token_uri(TokenUrl::new(endpoint)?);
@@ -62,5 +68,6 @@ async fn get_api_token(
         .request_async(&http_client)
         .await?;
 
+    info!("Authentication successful");
     Ok(token_result)
 }
