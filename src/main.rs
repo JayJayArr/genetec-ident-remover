@@ -1,27 +1,46 @@
 use crate::key::KeyFile;
-use oauth2::basic::BasicClient;
-use oauth2::http::{HeaderMap, header};
-use oauth2::reqwest;
-use oauth2::{ClientId, ClientSecret, TokenUrl};
+use clap::Parser;
+use oauth2::basic::{BasicClient, BasicTokenType};
+use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
+use oauth2::{TokenResponse, reqwest};
 mod key;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short)]
+    keyfile: String,
+}
 
 #[tokio::main]
 
 async fn main() -> anyhow::Result<()> {
-    let file =
-        tokio::fs::read_to_string("key-94e25400-f2ce-42a0-a9b5-44973aa372b9-rietdorf_test.json")
-            .await
-            .unwrap();
+    let args = Args::parse();
+
+    let file = tokio::fs::read_to_string(args.keyfile).await.unwrap();
 
     let key_values: KeyFile = serde_json::from_str(file.as_str())?;
-    println!("{:?}", key_values);
+    // println!("{:?}", key_values);
 
-    let client = BasicClient::new(ClientId::new(key_values.clientId))
-        .set_client_secret(ClientSecret::new(key_values.clientSecret))
-        .set_token_uri(TokenUrl::new(format!(
-            "{}/connect/token",
-            key_values.stsUrl
-        ))?);
+    let tokenresponse = get_api_token(
+        key_values.clientId,
+        key_values.clientSecret,
+        format!("{}/connect/token", key_values.stsUrl),
+    )
+    .await?;
+
+    println!("{:?}", tokenresponse.access_token().secret());
+    Ok(())
+}
+
+async fn get_api_token(
+    client_id: String,
+    client_secret: String,
+    endpoint: String,
+) -> anyhow::Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> {
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_client_secret(ClientSecret::new(client_secret))
+        .set_token_uri(TokenUrl::new(endpoint)?);
 
     let http_client = reqwest::ClientBuilder::new()
         // Following redirects opens the client up to SSRF vulnerabilities.
@@ -29,11 +48,10 @@ async fn main() -> anyhow::Result<()> {
         .build()
         .expect("Client should build");
 
-    let token_result = client
+    let token_result: StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType> = client
         .exchange_client_credentials()
         .request_async(&http_client)
         .await?;
 
-    println!("{:?}", token_result);
-    Ok(())
+    Ok(token_result)
 }
