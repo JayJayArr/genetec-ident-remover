@@ -1,8 +1,10 @@
 use crate::filter::{filter_identities_by_lastmodified, filter_identities_by_status};
 use crate::key::KeyFile;
 use crate::telemetry::init_tracing;
-use chrono::{Local, Utc};
+use ::reqwest::StatusCode;
+use chrono::Local;
 use clap::Parser;
+use futures_util::{StreamExt, stream};
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
 use oauth2::{TokenResponse, reqwest};
@@ -10,8 +12,8 @@ use reqwest::Client;
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use tracing::info;
 use tracing::warn;
+use tracing::{error, info};
 mod filter;
 mod key;
 mod telemetry;
@@ -49,13 +51,14 @@ async fn main() -> anyhow::Result<()> {
         format!("{}/connect/token", key_values.stsUrl),
     )
     .await?;
+    let bearer_token = tokenresponse.access_token().secret();
 
-    info!("Token obtained: {}", tokenresponse.access_token().secret());
+    info!("Token obtained: {}", bearer_token);
 
     let mut identities_response = get_all_identities(
-        tokenresponse.access_token().secret(),
-        key_values.identityServiceUrl,
-        key_values.accountId,
+        bearer_token,
+        key_values.identityServiceUrl.clone(),
+        key_values.accountId.clone(),
     )
     .await?;
 
@@ -72,10 +75,11 @@ async fn main() -> anyhow::Result<()> {
         .expect("Could not dump identities to file");
 
     if !args.dry_run {
-        let mut relevant_identities: Vec<String> = vec![];
+        let mut relevant_identities: Vec<(String, String)> = vec![];
         for identity in identities_response {
             let id = identity.get("identityId").unwrap().to_string();
             let email = identity.get("email").unwrap_or_default().to_string();
+            let etag = identity.get("eTag").unwrap_or_default().to_string();
             let lastmodified = identity
                 .get("lastModificationDateUtc")
                 .unwrap_or_default()
@@ -85,8 +89,17 @@ async fn main() -> anyhow::Result<()> {
                 "Preparing ident for delete: Id: {}, email: {}, lastmodified: {}",
                 id, email, lastmodified
             );
-            relevant_identities.push(id);
+            relevant_identities.push((id, etag));
         }
+
+        delete_identities(
+            bearer_token,
+            key_values.identityServiceUrl,
+            key_values.accountId,
+            &relevant_identities,
+        )
+        .await
+        .expect("Deletion failed");
 
         info!(
             "Found a total of {} inactive identities.",
@@ -155,6 +168,29 @@ async fn get_all_identities(
         .clone())
 }
 
+async fn delete_identities(
+    bearer_token: &str,
+    identity_base_url: String,
+    account_id: String,
+    identities: &Vec<(String, String)>,
+) -> anyhow::Result<()> {
+    info!("Deleting identities for AccountID {}...", account_id);
+
+    let client = Client::new();
+    stream::iter(identities)
+        .for_each_concurrent(10, |identity_id| {
+            callback(
+                &client,
+                identity_base_url.clone(),
+                account_id.clone(),
+                identity_id,
+                bearer_token,
+            )
+        })
+        .await;
+    Ok(())
+}
+
 async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
     let filename = format!("genetec_ident_remover {}.json", Local::now());
     info!("Dumping relevant identities to file {}", filename);
@@ -165,4 +201,39 @@ async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
         .await?;
     info!("Dump complete");
     Ok(())
+}
+async fn callback(
+    client: &reqwest::Client,
+    base_url: String,
+    account_id: String,
+    identity: &(String, String),
+    bearer_token: &str,
+) {
+    let (identity_id, e_tag) = identity;
+    let url = format!(
+        "{}/api/v4/accounts/{}/identities/{}?eTag={}",
+        base_url,
+        account_id,
+        identity_id.to_string(),
+        e_tag
+    );
+    dbg!(&url);
+
+    match client.delete(url).bearer_auth(bearer_token).send().await {
+        Ok(res) => {
+            if res.status() != StatusCode::OK {
+                error!(
+                    "Error deleting {}: {}",
+                    identity_id,
+                    res.text()
+                        .await
+                        .expect("Could not get http response text from bad request")
+                );
+            } else {
+                info!("successful deletion of {}", identity_id);
+            }
+        }
+
+        Err(e) => error!("Error deleting {}: {}", identity_id, e),
+    };
 }
