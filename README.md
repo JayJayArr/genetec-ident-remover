@@ -2,10 +2,21 @@
 
 Removes all inactive Identities which have not been modified within the last 90 days from a Genetec ClearID instance.
 
-## Setup:
+## Prerequisites:
 
-- Create an API integration and download the corresponding *.json file.
-- Run the CLI with the following command in dry-run mode
+Create an API integration and download the corresponding *.json file. This includes all necessary information for authentication and endpoints.
+
+## Usage:
+
+For help please take a look at:
+
+```bash
+genetec-ident-remover --help
+```
+
+## DryRun:
+
+Run the CLI with the following command in dry-run mode
 
 ```bash
 genetec-ident-remover -k <keyfile_name>.json --dry-run
