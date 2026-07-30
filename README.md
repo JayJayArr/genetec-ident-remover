@@ -1,7 +1,7 @@
 # genetec-ident-remover
 
 Removes all inactive Identities which have not been modified within the last 90 days from a Genetec ClearID instance.
-This has been tested against the ClearID-API identity enpoints v4.
+This has been tested against the Genetec ClearID-API identity enpoints v4.
 
 ## Prerequisites:
 
