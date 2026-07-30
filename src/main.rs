@@ -49,32 +49,30 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Token obtained: {}", tokenresponse.access_token().secret());
 
-    let identities_response = get_all_identities(
+    let mut identities_response = get_all_identities(
         tokenresponse.access_token().secret(),
         key_values.identityServiceUrl,
         key_values.accountId,
     )
     .await?;
 
-    let mut relevant_identities: Vec<String> = vec![];
+    identities_response = filter_identities_by_status(identities_response);
 
-    // Iterate over all Identities and extract IDs
+    let mut relevant_identities: Vec<String> = vec![];
     for identity in identities_response {
         let id = identity.get("identityId").unwrap().to_string();
         let email = identity.get("email").unwrap_or_default().to_string();
-        let status = identity.get("status").unwrap_or_default().to_string();
         let lastmodified = identity
             .get("lastModificationDateUtc")
             .unwrap_or_default()
             .to_string();
-        info!(
-            "Identity found, Status: {}, Id: {}, email: {}, lastmodified: {}",
-            status, id, email, lastmodified
-        );
+        dbg!(&lastmodified);
 
-        if status.contains("Inactive") {
-            relevant_identities.push(id);
-        }
+        info!(
+            "Inactive Identity found: Id: {}, email: {}, lastmodified: {}",
+            id, email, lastmodified
+        );
+        relevant_identities.push(id);
     }
 
     info!(
@@ -143,4 +141,25 @@ async fn get_all_identities(
         .as_array()
         .expect("Could not convert the Identities in an array")
         .clone())
+}
+
+fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
+    info!("Filtering {} identities by Status...", identities.len());
+    let identities: Vec<Value> = identities
+        .iter()
+        .filter(|identity| {
+            identity
+                .get("status")
+                .unwrap_or_default()
+                .to_string()
+                .contains("Inactive")
+        })
+        .cloned()
+        .collect();
+
+    info!(
+        "{} identities remaining after filtering by Status.",
+        identities.len()
+    );
+    identities
 }
