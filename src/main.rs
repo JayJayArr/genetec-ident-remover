@@ -53,8 +53,6 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     let bearer_token = tokenresponse.access_token().secret();
 
-    info!("Token obtained: {}", bearer_token);
-
     let mut identities_response = get_all_identities(
         bearer_token,
         key_values.identityServiceUrl.clone(),
@@ -75,36 +73,14 @@ async fn main() -> anyhow::Result<()> {
         .expect("Could not dump identities to file");
 
     if !args.dry_run {
-        let mut relevant_identities: Vec<(String, String)> = vec![];
-        for identity in identities_response {
-            let id = identity.get("identityId").unwrap().to_string();
-            let email = identity.get("email").unwrap_or_default().to_string();
-            let etag = identity.get("eTag").unwrap_or_default().to_string();
-            let lastmodified = identity
-                .get("lastModificationDateUtc")
-                .unwrap_or_default()
-                .to_string();
-
-            info!(
-                "Preparing ident for delete: Id: {}, email: {}, lastmodified: {}",
-                id, email, lastmodified
-            );
-            relevant_identities.push((id, etag));
-        }
-
         delete_identities(
             bearer_token,
             key_values.identityServiceUrl,
             key_values.accountId,
-            &relevant_identities,
+            &identities_response,
         )
         .await
         .expect("Deletion failed");
-
-        info!(
-            "Found a total of {} inactive identities.",
-            relevant_identities.len()
-        );
     } else {
         info!("Dry Run, Aborting. To delete identities rerun without --dry-run");
     }
@@ -172,7 +148,7 @@ async fn delete_identities(
     bearer_token: &str,
     identity_base_url: String,
     account_id: String,
-    identities: &Vec<(String, String)>,
+    identities: &Vec<Value>,
 ) -> anyhow::Result<()> {
     info!("Deleting identities for AccountID {}...", account_id);
 
@@ -193,7 +169,11 @@ async fn delete_identities(
 
 async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
     let filename = format!("genetec_ident_remover {}.json", Local::now());
-    info!("Dumping relevant identities to file {}", filename);
+    info!(
+        "Dumping {} relevant identities to file {}",
+        identities.len(),
+        filename
+    );
     let mut file = File::create(filename)
         .await
         .expect("Could not create file to dump identities");
@@ -206,18 +186,15 @@ async fn callback(
     client: &reqwest::Client,
     base_url: String,
     account_id: String,
-    identity: &(String, String),
+    identity: &Value,
     bearer_token: &str,
 ) {
-    let (identity_id, e_tag) = identity;
+    let identity_id = identity.get("identityId").unwrap().as_str().unwrap();
+    let etag = identity.get("eTag").unwrap_or_default().as_str().unwrap();
     let url = format!(
         "{}/api/v4/accounts/{}/identities/{}?eTag={}",
-        base_url,
-        account_id,
-        identity_id.to_string(),
-        e_tag
+        base_url, account_id, identity_id, etag
     );
-    dbg!(&url);
 
     match client.delete(url).bearer_auth(bearer_token).send().await {
         Ok(res) => {
