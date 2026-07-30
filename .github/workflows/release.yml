@@ -1,11 +1,11 @@
-# Adapted from: https://github.com/crate-ci/cargo-release/blob/v0.25.15/.github/workflows/post-release.yml
 name: "tagged-release"
 on:
-  repository_dispatch:
-  workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
-      - "v*"
+      - "v*.*.*"
+  workflow_dispatch:
 env:
   BIN_NAME: genetec-ident-remover
 jobs:
