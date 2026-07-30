@@ -13,3 +13,4 @@ tokio = {version ="1.53.1", features = ["full"]}
 tracing = "0.1.44"
 oauth2 = {version = "5.0.0"}
 tracing-subscriber = {version ="0.3.23", features = ["env-filter", "std"]}
+chrono = {version = "0.4.45", features= ["serde"]}

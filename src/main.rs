@@ -1,13 +1,15 @@
-use std::process::exit;
-
 use crate::key::KeyFile;
 use crate::telemetry::init_tracing;
+use chrono::{DateTime, TimeDelta, Utc};
 use clap::Parser;
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
 use oauth2::{TokenResponse, reqwest};
 use reqwest::Client;
 use serde_json::Value;
+use std::process::exit;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 use tracing::warn;
 mod key;
@@ -57,6 +59,11 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     identities_response = filter_identities_by_status(identities_response);
+    identities_response = filter_identities_by_lastmodified(identities_response);
+
+    dump_identities(&identities_response)
+        .await
+        .expect("Could not dump identities to file");
 
     let mut relevant_identities: Vec<String> = vec![];
     for identity in identities_response {
@@ -66,10 +73,9 @@ async fn main() -> anyhow::Result<()> {
             .get("lastModificationDateUtc")
             .unwrap_or_default()
             .to_string();
-        dbg!(&lastmodified);
 
         info!(
-            "Inactive Identity found: Id: {}, email: {}, lastmodified: {}",
+            "Preparing ident for delete: Id: {}, email: {}, lastmodified: {}",
             id, email, lastmodified
         );
         relevant_identities.push(id);
@@ -145,7 +151,7 @@ async fn get_all_identities(
 
 fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
     info!("Filtering {} identities by Status...", identities.len());
-    let identities: Vec<Value> = identities
+    let filtered_identities: Vec<Value> = identities
         .iter()
         .filter(|identity| {
             identity
@@ -159,7 +165,50 @@ fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
 
     info!(
         "{} identities remaining after filtering by Status.",
+        filtered_identities.len()
+    );
+    filtered_identities
+}
+
+fn filter_identities_by_lastmodified(identities: Vec<Value>) -> Vec<Value> {
+    info!(
+        "Filtering {} identities by lastModificationDateUtc...",
+        identities.len()
+    );
+
+    let now = chrono::Utc::now();
+
+    let identities: Vec<Value> = identities
+        .iter()
+        .filter(|identity| {
+            let lastmodified = identity
+                .get("lastModificationDateUtc")
+                .unwrap_or_default()
+                .as_str()
+                .unwrap();
+            let lastmodifier_datetime =
+                DateTime::parse_from_rfc3339(lastmodified).unwrap().to_utc();
+            let timediff = now - lastmodifier_datetime;
+            timediff > TimeDelta::days(90)
+        })
+        .cloned()
+        .collect();
+
+    info!(
+        "{} identities remaining after filtering by lastModificationDateUtc.",
         identities.len()
     );
     identities
+}
+
+async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
+    let filename = format!("genetec_ident_remover {}.json", Utc::now());
+    info!("Dumping relevant identities to file {}", filename);
+    let mut file = File::create(filename)
+        .await
+        .expect("Could not create file to dump identities");
+    file.write_all(serde_json::to_string(&identities).unwrap().as_bytes())
+        .await?;
+    info!("Dump complete");
+    Ok(())
 }
