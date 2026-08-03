@@ -23,7 +23,7 @@ pub fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
     filtered_identities
 }
 
-pub fn filter_identities_by_lastmodified(identities: Vec<Value>) -> Vec<Value> {
+pub fn filter_identities_by_lastmodified(identities: Vec<Value>, inactive_days: i64) -> Vec<Value> {
     info!(
         "Filtering {} identities by lastModificationDateUtc...",
         identities.len()
@@ -42,7 +42,7 @@ pub fn filter_identities_by_lastmodified(identities: Vec<Value>) -> Vec<Value> {
             let lastmodifier_datetime =
                 DateTime::parse_from_rfc3339(lastmodified).unwrap().to_utc();
             let timediff = now - lastmodifier_datetime;
-            timediff > TimeDelta::days(90)
+            timediff > TimeDelta::days(inactive_days)
         })
         .cloned()
         .collect();

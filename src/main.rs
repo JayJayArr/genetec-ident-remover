@@ -28,6 +28,10 @@ struct Args {
     /// Display users, but do not delete
     #[arg(long, default_value_t = false)]
     dry_run: bool,
+
+    /// Minimum Inactivity Period in days for an identity to be deleted
+    #[arg(short, long, default_value_t = 90)]
+    inactive_days: i64,
 }
 
 #[tokio::main]
@@ -61,7 +65,8 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     identities_response = filter_identities_by_status(identities_response);
-    identities_response = filter_identities_by_lastmodified(identities_response);
+    identities_response =
+        filter_identities_by_lastmodified(identities_response, args.inactive_days);
 
     info!(
         "Found a total of {} inactive identities.",
