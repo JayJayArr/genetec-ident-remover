@@ -21,7 +21,7 @@ mod telemetry;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// key file from Genetec to authenticate
+    /// Integration key-file from Genetec to authenticate
     #[arg(short)]
     keyfile: String,
 
@@ -29,7 +29,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     dry_run: bool,
 
-    /// Minimum Inactivity Period in days for an identity to be deleted
+    /// Minimum Inactivity Period in days for an `Identity` to be deleted
     #[arg(short, long, default_value_t = 90)]
     inactive_days: i64,
 }
