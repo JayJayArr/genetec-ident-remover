@@ -173,7 +173,7 @@ async fn delete_identities(
 }
 
 async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
-    let filename = format!("genetec_ident_remover {}.json", Local::now().timestamp());
+    let filename = format!("genetec_ident_remover{}.json", Local::now().timestamp());
     info!(
         "Dumping {} relevant identities to file {}",
         identities.len(),
