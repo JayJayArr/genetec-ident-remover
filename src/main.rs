@@ -26,7 +26,7 @@ struct Args {
     keyfile: String,
 
     /// Display users, but do not delete
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = true)]
     dry_run: bool,
 
     /// Minimum Inactivity Period in days for an `Identity` to be deleted
@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Deletion failed");
     } else {
-        info!("Dry Run, Aborting. To delete identities rerun without --dry-run");
+        info!("Dry Run, Aborting. To delete identities rerun with --dry-run false");
     }
 
     Ok(())
