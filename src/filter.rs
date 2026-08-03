@@ -1,5 +1,7 @@
-use chrono::{DateTime, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta};
 use serde_json::Value;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 
 pub fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
@@ -46,4 +48,20 @@ pub fn filter_identities_by_lastmodified(identities: Vec<Value>, inactive_days: 
         identities.len()
     );
     identities
+}
+
+pub async fn dump_identities(identities: &Vec<Value>) -> anyhow::Result<()> {
+    let filename = format!("genetec_ident_remover{}.json", Local::now().timestamp());
+    info!(
+        "Dumping {} relevant identities to file {}",
+        identities.len(),
+        filename
+    );
+    let mut file = File::create(filename)
+        .await
+        .expect("Could not create file to dump identities");
+    file.write_all(serde_json::to_string(&identities).unwrap().as_bytes())
+        .await?;
+    info!("Dump complete");
+    Ok(())
 }
