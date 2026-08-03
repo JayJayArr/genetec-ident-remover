@@ -6,13 +6,7 @@ pub fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
     info!("Filtering {} identities by Status...", identities.len());
     let filtered_identities: Vec<Value> = identities
         .iter()
-        .filter(|identity| {
-            identity
-                .get("status")
-                .unwrap_or_default()
-                .to_string()
-                .contains("Inactive")
-        })
+        .filter(|identity| identity.get("status").unwrap_or_default().eq("Inactive"))
         .cloned()
         .collect();
 
