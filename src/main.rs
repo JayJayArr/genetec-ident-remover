@@ -32,6 +32,10 @@ struct Args {
     /// Minimum Inactivity Period in days for an `Identity` to be deleted
     #[arg(short, long, default_value_t = 90)]
     inactive_days: i64,
+
+    /// Number of concurrent requests when deleting the Identities
+    #[arg(short, long, default_value_t = 10)]
+    concurrency: usize,
 }
 
 #[tokio::main]
@@ -83,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
             key_values.identityServiceUrl,
             key_values.accountId,
             &identities_response,
+            args.concurrency,
         )
         .await
         .expect("Deletion failed");
@@ -154,12 +159,13 @@ async fn delete_identities(
     identity_base_url: String,
     account_id: String,
     identities: &Vec<Value>,
+    concurrency: usize,
 ) -> anyhow::Result<()> {
     info!("Deleting identities for AccountID {}...", account_id);
 
     let client = Client::new();
     stream::iter(identities)
-        .for_each_concurrent(10, |identity_id| {
+        .for_each_concurrent(concurrency, |identity_id| {
             callback(
                 &client,
                 identity_base_url.clone(),
