@@ -15,12 +15,12 @@ For help please take a look at:
 genetec-ident-remover --help
 ```
 
-## DryRun:
+## Deleting
 
-Run the CLI with the following command in dry-run mode
+Run the CLI with the following command to have a look at the identities planned for deletion
 
 ```bash
-genetec-ident-remover -k <keyfile_name>.json --dry-run
+genetec-ident-remover -k <keyfile_name>.json
 
 ```
 
@@ -28,6 +28,6 @@ genetec-ident-remover -k <keyfile_name>.json --dry-run
   When ready:
 
 ```bash
-genetec-ident-remover -k <keyfile_name>.json
+genetec-ident-remover -k <keyfile_name>.json --delete
 
 ```

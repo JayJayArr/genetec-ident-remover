@@ -20,9 +20,9 @@ struct Args {
     #[arg(short)]
     keyfile: String,
 
-    /// Display users, but do not delete
-    #[arg(long, default_value_t = true)]
-    dry_run: bool,
+    /// Deletes the found users
+    #[arg(long)]
+    delete: bool,
 
     /// Minimum Inactivity Period in days for an `Identity` to be deleted
     #[arg(short, long, default_value_t = 90)]
@@ -38,9 +38,9 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     init_tracing()?;
     let args = Args::parse();
-    if !args.dry_run {
+    if args.delete {
         warn!(
-            "This runs destructive action, please run with --dry-run before running in non-dry-run mode"
+            "This runs destructive action, please run without --delete before running in destructive mode"
         )
     }
 
@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Could not dump identities to file");
 
-    if !args.dry_run {
+    if args.delete {
         delete_identities(
             bearer_token,
             key_values.identityServiceUrl,
@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Deletion failed");
     } else {
-        info!("Dry Run, Aborting. To delete identities rerun with --dry-run false");
+        info!("Dry Run, Aborting. To delete identities rerun with --delete");
     }
 
     Ok(())
