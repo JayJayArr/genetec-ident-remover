@@ -14,3 +14,7 @@ display: ## run application in display mode without deleting
 lint: ## run linter
 	cargo fmt --all -- --check
 	cargo clippy --all-targets --all-features -- -D warnings
+
+.PHONY: update
+update: ## run cargo upgrade && cargo update
+	cargo upgrade && cargo update
