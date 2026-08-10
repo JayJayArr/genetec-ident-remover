@@ -1,0 +1,25 @@
+{
+  "accountId": "uuidv4",
+  "key": {
+    "kid": "uuidv4:uuidv4",
+    "keyType": "RSA",
+    "algorithm": "RS512",
+    "exponent": "AQAB",
+    "modulus": "modulus",
+    "d": "d",
+    "dp": "dp",
+    "dq": "dq",
+    "inverseQ": "inverseQ",
+    "p": "p",
+    "q": "q"
+  },
+  "clientId": "clienID",
+  "clientSecret": "clientSecret",
+  "stsUrl": "http://localhost",
+  "identityServiceUrl": "https://localhost/identity",
+  "principalServiceUrl": "https://localhost/principal",
+  "teamServiceUrl": "https://localhost/team",
+  "roleServiceUrl": "https://localhost/team",
+  "identityRequestServiceUrl": "https://localhost/identityrequest",
+  "webhooksServiceUrl": "https://localhost/webhooks"
+}

@@ -1,2 +1,3 @@
 /target
 *.json
+!key-dummy.json

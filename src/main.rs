@@ -44,14 +44,12 @@ async fn main() -> anyhow::Result<()> {
         )
     }
 
-    let file = tokio::fs::read_to_string(args.keyfile).await.unwrap();
-
-    let key_values: KeyFile = serde_json::from_str(file.as_str())?;
+    let key_values: KeyFile = get_keyfile(args.keyfile).await?;
 
     let tokenresponse = get_bearer_token(
         key_values.clientId,
         key_values.clientSecret,
-        format!("{}/connect/token", key_values.stsUrl),
+        key_values.stsUrl,
     )
     .await?;
     let bearer_token = tokenresponse.access_token().secret();
@@ -91,4 +89,21 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn get_keyfile(filename: String) -> anyhow::Result<KeyFile> {
+    let file = tokio::fs::read_to_string(filename).await.unwrap();
+
+    let keyfile = serde_json::from_str(file.as_str())?;
+    Ok(keyfile)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::get_keyfile;
+
+    #[tokio::test]
+    async fn test_dummy_keyfile_is_parsed_correctly() {
+        assert!(get_keyfile("./key-dummy.json".to_string()).await.is_ok())
+    }
 }

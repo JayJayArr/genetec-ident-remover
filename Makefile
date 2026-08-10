@@ -18,3 +18,7 @@ lint: ## run linter
 .PHONY: update
 update: ## run cargo upgrade && cargo update
 	cargo upgrade && cargo update
+
+.PHONY: test
+test: ## run tests
+	cargo nextest run

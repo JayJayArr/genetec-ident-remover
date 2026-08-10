@@ -9,12 +9,13 @@ use tracing::{error, info};
 pub async fn get_bearer_token(
     client_id: String,
     client_secret: String,
-    endpoint: String,
+    base_url: String,
 ) -> anyhow::Result<StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>> {
-    info!("Authenticating with the Genetec API: {}", endpoint);
+    info!("Authenticating with the Genetec API: {}", base_url);
+    let url = format!("{}/connect/token", base_url);
     let oauth_client = BasicClient::new(ClientId::new(client_id))
         .set_client_secret(ClientSecret::new(client_secret))
-        .set_token_uri(TokenUrl::new(endpoint)?);
+        .set_token_uri(TokenUrl::new(url)?);
 
     let http_client = oauth2::reqwest::ClientBuilder::new()
         // Following redirects opens the client up to SSRF vulnerabilities.
@@ -112,4 +113,165 @@ async fn delete_callback(
 
         Err(e) => error!("Error deleting {}: {}", identity_id, e),
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use oauth2::TokenResponse;
+    use serde_json::{Value, json};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use crate::endpoint::{delete_callback, get_all_identities, get_bearer_token};
+
+    #[tokio::test]
+    async fn test_bearer_token_request() {
+        let mock_server = MockServer::start().await;
+        Mock::given(path("/connect/token"))
+            .and(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+              "access_token":"MTQ0NjJkZmQ5OTM2NDE1ZTZjNGZmZjI3",
+              "token_type":"Bearer",
+              "expires_in":3600,
+              "refresh_token":"IwOGYzYTlmM2YxOTQ5MGE3YmNmMDFkNTVk",
+              "scope":"create"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let token = get_bearer_token(
+            "client_id".to_string(),
+            "client_secret".to_string(),
+            mock_server.uri(),
+        )
+        .await;
+        assert!(token.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_identities_request() {
+        let mock_server = MockServer::start().await;
+        Mock::given(path("/api/v4/accounts/accountID/identities"))
+            .and(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(
+            {
+                "identities":[
+                    {
+                        "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                        "companyData": {
+                        "approvers": []
+                        },
+                        "createdBy": "SystemService",
+                        "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                        "displayName": "John Doe",
+                        "eTag": "2",
+                        "email": "john.doe@example.com",
+                        "firstName": "John",
+                        "hasLicensedVehicles": false,
+                        "hasVehicles": false,
+                        "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                        "identityType": "Employee",
+                        "isDeleted": false,
+                        "isSCSaaS": true,
+                        "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                        "lastModifiedBy": "phtephen@example.com",
+                        "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                        "lastModifiedByPrincipalType": "User",
+                        "lastName": "Doe",
+                        "ordinal": 2,
+                        "privateData": {},
+                        "status": "Inactive",
+                        "systemData": {
+                        "customFields": [],
+                        "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                        "provisioningAttributes": [],
+                        "resourceFilters": []
+                        }
+                    },
+                ]
+            }
+            )))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let token = get_all_identities("token", mock_server.uri(), "accountID".to_string()).await;
+        dbg!(mock_server.received_requests().await);
+        dbg!(&token);
+        assert!(token.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_identities_request() {
+        let mock_server = MockServer::start().await;
+        Mock::given(path("/api/v4/accounts/accountID/identities"))
+            .and(method("DELETE"))
+            .respond_with(ResponseTemplate::new(200))
+            // .expect(1)
+            .mount(&mock_server)
+            .await;
+        Mock::given(path("/connect/token"))
+            .and(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+              "access_token":"MTQ0NjJkZmQ5OTM2NDE1ZTZjNGZmZjI3",
+              "token_type":"Bearer",
+              "expires_in":3600,
+              "refresh_token":"IwOGYzYTlmM2YxOTQ5MGE3YmNmMDFkNTVk",
+              "scope":"create"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let token = get_bearer_token(
+            "client_id".to_string(),
+            "client_secret".to_string(),
+            mock_server.uri(),
+        )
+        .await;
+
+        delete_callback(
+            &reqwest::Client::new(),
+            mock_server.uri(),
+            "accountID".to_string(),
+            &Value::from(json!(
+                    {
+                        "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                        "companyData": {
+                        "approvers": []
+                        },
+                        "createdBy": "SystemService",
+                        "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                        "displayName": "John Doe",
+                        "eTag": "2",
+                        "email": "john.doe@example.com",
+                        "firstName": "John",
+                        "hasLicensedVehicles": false,
+                        "hasVehicles": false,
+                        "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                        "identityType": "Employee",
+                        "isDeleted": false,
+                        "isSCSaaS": true,
+                        "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                        "lastModifiedBy": "phtephen@example.com",
+                        "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                        "lastModifiedByPrincipalType": "User",
+                        "lastName": "Doe",
+                        "ordinal": 2,
+                        "privateData": {},
+                        "status": "Inactive",
+                        "systemData": {
+                        "customFields": [],
+                        "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                        "provisioningAttributes": [],
+                        "resourceFilters": []
+                        }
+                    }
+            )),
+            token.unwrap().access_token().clone().into_secret().as_str(),
+        )
+        .await;
+    }
 }
