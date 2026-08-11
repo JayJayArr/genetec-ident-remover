@@ -199,8 +199,6 @@ mod tests {
             .await;
 
         let token = get_all_identities("token", mock_server.uri(), "accountID".to_string()).await;
-        dbg!(mock_server.received_requests().await);
-        dbg!(&token);
         assert!(token.is_ok());
     }
 
