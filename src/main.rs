@@ -42,6 +42,8 @@ async fn main() -> anyhow::Result<()> {
         warn!(
             "This runs destructive action, please run without --delete before running in destructive mode"
         )
+    } else {
+        info!("Dry Run, please rerun with --delete when ready to delete identities")
     }
 
     let key_values: KeyFile = get_keyfile(args.keyfile).await?;
@@ -61,6 +63,8 @@ async fn main() -> anyhow::Result<()> {
     )
     .await?;
 
+    //Apply filters
+    //TODO: make this configurable via flags
     identities_response = filter_identities_by_status(identities_response);
     identities_response =
         filter_identities_by_lastmodified(identities_response, args.inactive_days);
