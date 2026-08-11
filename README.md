@@ -13,6 +13,15 @@ For help please take a look at:
 
 ```bash
 genetec-ident-remover --help
+Usage: genetec-ident-remover [OPTIONS] -k <KEYFILE>
+
+Options:
+  -k <KEYFILE>                         Integration key-file from Genetec to authenticate
+      --delete                         Deletes the found users
+  -i, --inactive-days <INACTIVE_DAYS>  Minimum Inactivity Period in days for an `Identity` to be deleted [default: 90]
+  -c, --concurrency <CONCURRENCY>      Number of concurrent requests when deleting the Identities [default: 10]
+  -h, --help                           Print help
+  -V, --version                        Print version
 ```
 
 ## Deleting
