@@ -118,7 +118,7 @@ async fn delete_callback(
 #[cfg(test)]
 mod tests {
     use oauth2::TokenResponse;
-    use serde_json::{Value, json};
+    use serde_json::json;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
@@ -234,40 +234,40 @@ mod tests {
             &reqwest::Client::new(),
             mock_server.uri(),
             "accountID".to_string(),
-            &Value::from(json!(
-                    {
-                        "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
-                        "companyData": {
-                        "approvers": []
-                        },
-                        "createdBy": "SystemService",
-                        "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
-                        "displayName": "John Doe",
-                        "eTag": "2",
-                        "email": "john.doe@example.com",
-                        "firstName": "John",
-                        "hasLicensedVehicles": false,
-                        "hasVehicles": false,
-                        "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
-                        "identityType": "Employee",
-                        "isDeleted": false,
-                        "isSCSaaS": true,
-                        "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
-                        "lastModifiedBy": "phtephen@example.com",
-                        "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
-                        "lastModifiedByPrincipalType": "User",
-                        "lastName": "Doe",
-                        "ordinal": 2,
-                        "privateData": {},
-                        "status": "Inactive",
-                        "systemData": {
-                        "customFields": [],
-                        "horizonId": "5a56e94b92964d6da3d57258508b42e7",
-                        "provisioningAttributes": [],
-                        "resourceFilters": []
-                        }
+            &json!(
+                {
+                    "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                    "companyData": {
+                    "approvers": []
+                    },
+                    "createdBy": "SystemService",
+                    "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                    "displayName": "John Doe",
+                    "eTag": "2",
+                    "email": "john.doe@example.com",
+                    "firstName": "John",
+                    "hasLicensedVehicles": false,
+                    "hasVehicles": false,
+                    "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                    "identityType": "Employee",
+                    "isDeleted": false,
+                    "isSCSaaS": true,
+                    "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                    "lastModifiedBy": "phtephen@example.com",
+                    "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                    "lastModifiedByPrincipalType": "User",
+                    "lastName": "Doe",
+                    "ordinal": 2,
+                    "privateData": {},
+                    "status": "Inactive",
+                    "systemData": {
+                    "customFields": [],
+                    "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                    "provisioningAttributes": [],
+                    "resourceFilters": []
                     }
-            )),
+                }
+            ),
             token.unwrap().access_token().clone().into_secret().as_str(),
         )
         .await;

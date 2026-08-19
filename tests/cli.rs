@@ -13,7 +13,7 @@ mod cli {
     #[tokio::test]
     async fn test_cli_fails_with_dummy_keyfile() {
         let mut cmd = cargo_bin_cmd!();
-        cmd.args(&["-k", "key-dummy.json"])
+        cmd.args(["-k", "key-dummy.json"])
             .assert()
             .failure()
             .stderr(contains("client error (Connect)"));
@@ -22,6 +22,6 @@ mod cli {
     #[tokio::test]
     async fn test_cli_emmits_delete_warning_on_flag() {
         let mut cmd = cargo_bin_cmd!();
-        cmd.args(&["-k","key-dummy.json","--delete"]).assert().failure().stdout(contains(" This runs destructive action, please run without --delete before running in destructive mode",));
+        cmd.args(["-k","key-dummy.json","--delete"]).assert().failure().stdout(contains(" This runs destructive action, please run without --delete before running in destructive mode",));
     }
 }
