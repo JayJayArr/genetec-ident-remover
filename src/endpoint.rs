@@ -180,7 +180,9 @@ mod tests {
         matchers::{method, path},
     };
 
-    use crate::endpoint::{delete_identity_callback, get_all_identities, get_bearer_token};
+    use crate::endpoint::{
+        delete_identity_callback, delete_pictures_callback, get_all_identities, get_bearer_token,
+    };
 
     #[tokio::test]
     async fn test_bearer_token_request() {
@@ -261,12 +263,14 @@ mod tests {
     #[tokio::test]
     async fn test_delete_identities_request() {
         let mock_server = MockServer::start().await;
-        Mock::given(path("/api/v4/accounts/accountID/identities"))
-            .and(method("DELETE"))
-            .respond_with(ResponseTemplate::new(200))
-            // .expect(1)
-            .mount(&mock_server)
-            .await;
+        Mock::given(path(
+            "/api/v4/accounts/accountID/identities/d2c68f36-fb4e-4606-b831-617f7ab06094",
+        ))
+        .and(method("DELETE"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
         Mock::given(path("/connect/token"))
             .and(method("POST"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -287,6 +291,79 @@ mod tests {
         .await;
 
         delete_identity_callback(
+            &reqwest::Client::new(),
+            mock_server.uri(),
+            "accountID".to_string(),
+            &json!(
+                {
+                    "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                    "companyData": {
+                    "approvers": []
+                    },
+                    "createdBy": "SystemService",
+                    "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                    "displayName": "John Doe",
+                    "eTag": "2",
+                    "email": "john.doe@example.com",
+                    "firstName": "John",
+                    "hasLicensedVehicles": false,
+                    "hasVehicles": false,
+                    "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                    "identityType": "Employee",
+                    "isDeleted": false,
+                    "isSCSaaS": true,
+                    "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                    "lastModifiedBy": "phtephen@example.com",
+                    "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                    "lastModifiedByPrincipalType": "User",
+                    "lastName": "Doe",
+                    "ordinal": 2,
+                    "privateData": {},
+                    "status": "Inactive",
+                    "systemData": {
+                    "customFields": [],
+                    "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                    "provisioningAttributes": [],
+                    "resourceFilters": []
+                    }
+                }
+            ),
+            token.unwrap().access_token().clone().into_secret().as_str(),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_delete_picture_request() {
+        let mock_server = MockServer::start().await;
+        Mock::given(path(
+            "/api/v4/accounts/accountID/identities/d2c68f36-fb4e-4606-b831-617f7ab06094/picture",
+        ))
+        .and(method("DELETE"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+        Mock::given(path("/connect/token"))
+            .and(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+              "access_token":"MTQ0NjJkZmQ5OTM2NDE1ZTZjNGZmZjI3",
+              "token_type":"Bearer",
+              "expires_in":3600,
+              "refresh_token":"IwOGYzYTlmM2YxOTQ5MGE3YmNmMDFkNTVk",
+              "scope":"create"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let token = get_bearer_token(
+            "client_id".to_string(),
+            "client_secret".to_string(),
+            mock_server.uri(),
+        )
+        .await;
+
+        delete_pictures_callback(
             &reqwest::Client::new(),
             mock_server.uri(),
             "accountID".to_string(),

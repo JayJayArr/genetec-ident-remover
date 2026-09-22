@@ -17,13 +17,13 @@ mod key;
 mod telemetry;
 
 #[derive(Parser, Debug)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
-enum Commands {
+pub enum Commands {
     #[command()]
     ListInactiveIdentities {
         #[arg(short)]
