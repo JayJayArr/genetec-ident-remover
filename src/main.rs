@@ -1,10 +1,11 @@
-use crate::endpoint::{delete_identities, get_all_identities, get_bearer_token};
+use crate::endpoint::{delete_identities, delete_pictures, get_all_identities, get_bearer_token};
 use crate::filter::{
     dump_identities, filter_identities_by_lastmodified, filter_identities_by_status,
 };
 use crate::key::KeyFile;
 use crate::telemetry::init_tracing;
 use clap::Parser;
+use clap::Subcommand;
 use oauth2::TokenResponse;
 use tracing::info;
 use tracing::warn;
@@ -12,6 +13,46 @@ mod endpoint;
 mod filter;
 mod key;
 mod telemetry;
+
+#[derive(Parser, Debug)]
+#[command(name = "genetec-ident-remover")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    #[command()]
+    ListInactiveIdentities {
+        #[arg(short)]
+        keyfile: String,
+
+        /// Minimum Inactivity Period in days for an `Identity` to be deleted
+        #[arg(short, long, default_value_t = 90)]
+        inactive_days: i64,
+    },
+    PurgeInactiveIdentities {
+        #[arg(short)]
+        keyfile: String,
+
+        /// Minimum Inactivity Period in days for an `Identity` to be deleted
+        #[arg(short, long, default_value_t = 90)]
+        inactive_days: i64,
+
+        /// Number of concurrent requests when deleting the Identities
+        #[arg(short, long, default_value_t = 10)]
+        concurrency: usize,
+    },
+    PurgePictures {
+        #[arg(short)]
+        keyfile: String,
+
+        /// Number of concurrent requests when deleting the Identities
+        #[arg(short, long, default_value_t = 10)]
+        concurrency: usize,
+    },
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -37,61 +78,134 @@ struct Args {
 
 async fn main() -> anyhow::Result<()> {
     init_tracing()?;
-    let args = Args::parse();
-    if args.delete {
-        warn!(
-            "This runs destructive action, please run without --delete before running in destructive mode"
-        )
-    } else {
-        info!("Dry Run, please rerun with --delete when ready to delete identities")
+    let args = Cli::parse();
+    match args.command {
+        Commands::ListInactiveIdentities {
+            keyfile,
+            inactive_days,
+        } => {
+            let key_values: KeyFile = get_keyfile(keyfile).await?;
+            let tokenresponse = get_bearer_token(
+                key_values.clientId,
+                key_values.clientSecret,
+                key_values.stsUrl,
+            )
+            .await?;
+            let bearer_token = tokenresponse.access_token().secret();
+
+            let mut identities_response = get_all_identities(
+                bearer_token,
+                key_values.identityServiceUrl.clone(),
+                key_values.accountId.clone(),
+            )
+            .await?;
+
+            //Apply filters
+            //TODO: make this configurable via flags
+            identities_response = filter_identities_by_status(identities_response);
+            identities_response =
+                filter_identities_by_lastmodified(identities_response, inactive_days);
+
+            info!(
+                "Found a total of {} inactive identities.",
+                identities_response.len()
+            );
+
+            dump_identities(&identities_response)
+                .await
+                .expect("Could not dump identities to file");
+            info!(
+                "To delete the unused identities please use the subcommand purge-inactive-identies"
+            );
+        }
+
+        Commands::PurgeInactiveIdentities {
+            keyfile,
+            inactive_days,
+            concurrency,
+        } => {
+            let key_values: KeyFile = get_keyfile(keyfile).await?;
+            warn!(
+                "Deleting inactive identies from system {}",
+                key_values.accountId
+            );
+            let tokenresponse = get_bearer_token(
+                key_values.clientId,
+                key_values.clientSecret,
+                key_values.stsUrl,
+            )
+            .await?;
+            let bearer_token = tokenresponse.access_token().secret();
+
+            let mut identities_response = get_all_identities(
+                bearer_token,
+                key_values.identityServiceUrl.clone(),
+                key_values.accountId.clone(),
+            )
+            .await?;
+
+            //Apply filters
+            //TODO: make this configurable via flags
+            identities_response = filter_identities_by_status(identities_response);
+            identities_response =
+                filter_identities_by_lastmodified(identities_response, inactive_days);
+
+            info!(
+                "Found a total of {} inactive identities.",
+                identities_response.len()
+            );
+
+            dump_identities(&identities_response)
+                .await
+                .expect("Could not dump identities to file");
+
+            delete_identities(
+                bearer_token,
+                key_values.identityServiceUrl,
+                key_values.accountId,
+                &identities_response,
+                concurrency,
+            )
+            .await
+            .expect("Deletion failed");
+        }
+        Commands::PurgePictures {
+            keyfile,
+            concurrency,
+        } => {
+            let key_values: KeyFile = get_keyfile(keyfile).await?;
+            warn!("Deleting all pictures from system {}", key_values.accountId);
+            let tokenresponse = get_bearer_token(
+                key_values.clientId,
+                key_values.clientSecret,
+                key_values.stsUrl,
+            )
+            .await?;
+            let bearer_token = tokenresponse.access_token().secret();
+
+            let identities_response = get_all_identities(
+                bearer_token,
+                key_values.identityServiceUrl.clone(),
+                key_values.accountId.clone(),
+            )
+            .await?;
+
+            info!("Found a total of {} identities.", identities_response.len());
+
+            dump_identities(&identities_response)
+                .await
+                .expect("Could not dump identities to file");
+            delete_pictures(
+                bearer_token,
+                key_values.identityServiceUrl,
+                key_values.accountId,
+                &identities_response,
+                concurrency,
+            )
+            .await
+            .expect("Deletion failed");
+        }
     }
-
-    let key_values: KeyFile = get_keyfile(args.keyfile).await?;
-
-    let tokenresponse = get_bearer_token(
-        key_values.clientId,
-        key_values.clientSecret,
-        key_values.stsUrl,
-    )
-    .await?;
-    let bearer_token = tokenresponse.access_token().secret();
-
-    let mut identities_response = get_all_identities(
-        bearer_token,
-        key_values.identityServiceUrl.clone(),
-        key_values.accountId.clone(),
-    )
-    .await?;
-
-    //Apply filters
-    //TODO: make this configurable via flags
-    identities_response = filter_identities_by_status(identities_response);
-    identities_response =
-        filter_identities_by_lastmodified(identities_response, args.inactive_days);
-
-    info!(
-        "Found a total of {} inactive identities.",
-        identities_response.len()
-    );
-
-    dump_identities(&identities_response)
-        .await
-        .expect("Could not dump identities to file");
-
-    if args.delete {
-        delete_identities(
-            bearer_token,
-            key_values.identityServiceUrl,
-            key_values.accountId,
-            &identities_response,
-            args.concurrency,
-        )
-        .await
-        .expect("Deletion failed");
-    } else {
-        info!("Dry Run, Aborting. To delete identities rerun with --delete");
-    }
-
     Ok(())
 }
 
