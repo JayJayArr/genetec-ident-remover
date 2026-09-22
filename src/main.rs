@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use crate::endpoint::{delete_identities, delete_pictures, get_all_identities, get_bearer_token};
 use crate::filter::{
     dump_identities, filter_identities_by_lastmodified, filter_identities_by_status,
@@ -64,6 +66,10 @@ async fn main() -> anyhow::Result<()> {
             inactive_days,
         } => {
             let key_values: KeyFile = get_keyfile(keyfile).await?;
+            info!(
+                "Displaying all inactive identities for {}",
+                key_values.accountId
+            );
             let tokenresponse = get_bearer_token(
                 key_values.clientId,
                 key_values.clientSecret,
@@ -108,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
                 "Deleting inactive identies from system {}",
                 key_values.accountId
             );
+            get_confirmation();
             let tokenresponse = get_bearer_token(
                 key_values.clientId,
                 key_values.clientSecret,
@@ -155,6 +162,7 @@ async fn main() -> anyhow::Result<()> {
         } => {
             let key_values: KeyFile = get_keyfile(keyfile).await?;
             warn!("Deleting all pictures from system {}", key_values.accountId);
+            get_confirmation();
             let tokenresponse = get_bearer_token(
                 key_values.clientId,
                 key_values.clientSecret,
@@ -195,6 +203,17 @@ async fn get_keyfile(filename: String) -> anyhow::Result<KeyFile> {
 
     let keyfile = serde_json::from_str(file.as_str())?;
     Ok(keyfile)
+}
+
+fn get_confirmation() {
+    let mut input = String::new();
+
+    println!("Are you sure you want to do this? y/N");
+
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim() != "y".to_string() {
+        exit(1)
+    }
 }
 
 #[cfg(test)]
