@@ -211,7 +211,7 @@ fn get_confirmation() {
     println!("Are you sure you want to do this? y/N");
 
     std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() != "y".to_string() {
+    if input.trim() != "y" {
         exit(1)
     }
 }

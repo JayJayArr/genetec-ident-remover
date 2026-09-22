@@ -107,7 +107,7 @@ async fn delete_identity_callback(
                         .expect("Could not get http response text from bad request")
                 );
             } else {
-                info!("successful deletion of picture from {}", identity_id);
+                info!("successful deletion of {}", identity_id);
             }
         }
 
@@ -163,11 +163,11 @@ async fn delete_pictures_callback(
                         .expect("Could not get http response text from bad request")
                 );
             } else {
-                info!("successful deletion of {}", identity_id);
+                info!("successful deletion of picture from {}", identity_id);
             }
         }
 
-        Err(e) => error!("Error deleting {}: {}", identity_id, e),
+        Err(e) => error!("Error deleting picture from {}: {}", identity_id, e),
     };
 }
 
