@@ -15,7 +15,6 @@ mod key;
 mod telemetry;
 
 #[derive(Parser, Debug)]
-#[command(name = "genetec-ident-remover")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -52,26 +51,6 @@ enum Commands {
         #[arg(short, long, default_value_t = 10)]
         concurrency: usize,
     },
-}
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Integration key-file from Genetec to authenticate
-    #[arg(short)]
-    keyfile: String,
-
-    /// Deletes the found users
-    #[arg(long)]
-    delete: bool,
-
-    /// Minimum Inactivity Period in days for an `Identity` to be deleted
-    #[arg(short, long, default_value_t = 90)]
-    inactive_days: i64,
-
-    /// Number of concurrent requests when deleting the Identities
-    #[arg(short, long, default_value_t = 10)]
-    concurrency: usize,
 }
 
 #[tokio::main]
@@ -169,6 +148,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .expect("Deletion failed");
         }
+
         Commands::PurgePictures {
             keyfile,
             concurrency,
@@ -195,6 +175,7 @@ async fn main() -> anyhow::Result<()> {
             dump_identities(&identities_response)
                 .await
                 .expect("Could not dump identities to file");
+
             delete_pictures(
                 bearer_token,
                 key_values.identityServiceUrl,
