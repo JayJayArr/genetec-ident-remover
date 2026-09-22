@@ -71,7 +71,7 @@ pub async fn delete_identities(
     let client = Client::new();
     stream::iter(identities)
         .for_each_concurrent(concurrency, |identity_id| {
-            delete_callback(
+            delete_identity_callback(
                 &client,
                 identity_base_url.clone(),
                 account_id.clone(),
@@ -82,7 +82,7 @@ pub async fn delete_identities(
         .await;
     Ok(())
 }
-async fn delete_callback(
+async fn delete_identity_callback(
     client: &reqwest::Client,
     base_url: String,
     account_id: String,
@@ -115,6 +115,62 @@ async fn delete_callback(
     };
 }
 
+pub async fn delete_pictures(
+    bearer_token: &str,
+    identity_base_url: String,
+    account_id: String,
+    identities: &Vec<Value>,
+    concurrency: usize,
+) -> anyhow::Result<()> {
+    info!("Deleting all pictures for AccountID {}...", account_id);
+
+    let client = Client::new();
+    stream::iter(identities)
+        .for_each_concurrent(concurrency, |identity_id| {
+            delete_pictures_callback(
+                &client,
+                identity_base_url.clone(),
+                account_id.clone(),
+                identity_id,
+                bearer_token,
+            )
+        })
+        .await;
+    Ok(())
+}
+
+async fn delete_pictures_callback(
+    client: &reqwest::Client,
+    base_url: String,
+    account_id: String,
+    identity: &Value,
+    bearer_token: &str,
+) {
+    let identity_id = identity.get("identityId").unwrap().as_str().unwrap();
+    let url = format!(
+        "{}/api/v4/accounts/{}/identities/{}/picture",
+        base_url, account_id, identity_id
+    );
+
+    match client.delete(url).bearer_auth(bearer_token).send().await {
+        Ok(res) => {
+            if res.status() != StatusCode::OK {
+                error!(
+                    "Error deleting picture from {}: {}",
+                    identity_id,
+                    res.text()
+                        .await
+                        .expect("Could not get http response text from bad request")
+                );
+            } else {
+                info!("successful deletion of {}", identity_id);
+            }
+        }
+
+        Err(e) => error!("Error deleting {}: {}", identity_id, e),
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use oauth2::TokenResponse;
@@ -124,7 +180,7 @@ mod tests {
         matchers::{method, path},
     };
 
-    use crate::endpoint::{delete_callback, get_all_identities, get_bearer_token};
+    use crate::endpoint::{delete_identity_callback, get_all_identities, get_bearer_token};
 
     #[tokio::test]
     async fn test_bearer_token_request() {
@@ -230,7 +286,7 @@ mod tests {
         )
         .await;
 
-        delete_callback(
+        delete_identity_callback(
             &reqwest::Client::new(),
             mock_server.uri(),
             "accountID".to_string(),
