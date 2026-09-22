@@ -24,15 +24,16 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command()]
+    /// Lists inactive `Identities`
     ListInactiveIdentities {
         #[arg(short)]
         keyfile: String,
 
-        /// Minimum Inactivity Period in days for an `Identity` to be deleted
+        /// Minimum Inactivity Period in days for an `Identity` to be listed
         #[arg(short, long, default_value_t = 90)]
         inactive_days: i64,
     },
+    /// DELETES inactive `Identities`
     PurgeInactiveIdentities {
         #[arg(short)]
         keyfile: String,
@@ -45,6 +46,7 @@ pub enum Commands {
         #[arg(short, long, default_value_t = 10)]
         concurrency: usize,
     },
+    /// DELETES all Pictures
     PurgePictures {
         #[arg(short)]
         keyfile: String,
