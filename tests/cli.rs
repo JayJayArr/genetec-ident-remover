@@ -55,4 +55,14 @@ mod cli {
                 "the following required arguments were not provided:",
             ));
     }
+
+    #[tokio::test]
+    async fn test_cli_prints_correct_version_number() {
+        let mut cmd = cargo_bin_cmd!();
+        cmd.args(["--version"])
+            .assert()
+            .success()
+            .stdout(contains("genetec-ident-remover"))
+            .stdout(contains(env!("CARGO_PKG_VERSION")));
+    }
 }

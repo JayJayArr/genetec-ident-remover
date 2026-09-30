@@ -17,6 +17,7 @@ mod key;
 mod telemetry;
 
 #[derive(Parser, Debug)]
+#[command(version, about)]
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
