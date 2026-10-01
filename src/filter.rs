@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local, TimeDelta};
+use rayon::prelude::*;
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -7,7 +8,7 @@ use tracing::info;
 pub fn filter_identities_by_status(identities: Vec<Value>) -> Vec<Value> {
     info!("Filtering {} identities by Status...", identities.len());
     let filtered_identities: Vec<Value> = identities
-        .iter()
+        .par_iter()
         .filter(|identity| identity.get("status").unwrap_or_default().eq("Inactive"))
         .cloned()
         .collect();
@@ -28,7 +29,7 @@ pub fn filter_identities_by_lastmodified(identities: Vec<Value>, inactive_days: 
     let now = chrono::Utc::now();
 
     let identities: Vec<Value> = identities
-        .iter()
+        .par_iter()
         .filter(|identity| {
             let lastmodified = identity
                 .get("lastModificationDateUtc")
