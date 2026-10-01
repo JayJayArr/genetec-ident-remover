@@ -1,4 +1,5 @@
 use futures_util::{StreamExt, stream};
+use indicatif::ProgressBar;
 use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
 use reqwest::Client;
@@ -55,6 +56,7 @@ pub async fn get_all_identities(
     let mut continuation = String::new();
     let mut identities = Vec::new();
     let mut total;
+    let pb = ProgressBar::no_length();
 
     info!("Getting identities for AccountID {}", account_id);
     loop {
@@ -71,13 +73,15 @@ pub async fn get_all_identities(
         total = response
             .total_items
             .expect("Could not find total value in response");
+        pb.set_length(total);
+        pb.set_position(identities.len().try_into().unwrap());
         match response.continuation {
             Some(new_continuation_token) => continuation = new_continuation_token,
             None => break,
         }
     }
+    pb.finish_with_message("Done!");
 
-    info!("Total: {}, Length: {}", total, identities.len());
     Ok(identities)
 }
 pub async fn delete_identities(
