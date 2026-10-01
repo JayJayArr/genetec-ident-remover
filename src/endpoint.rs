@@ -202,7 +202,7 @@ mod tests {
     use serde_json::json;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path},
+        matchers::{method, path, query_param},
     };
 
     use crate::endpoint::{
@@ -239,6 +239,7 @@ mod tests {
         let mock_server = MockServer::start().await;
         Mock::given(path("/api/v4/accounts/accountID/identities"))
             .and(method("GET"))
+            .and(query_param("Take", "100"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!(
             {
                 "identities":[
@@ -274,15 +275,121 @@ mod tests {
                         "resourceFilters": []
                         }
                     },
-                ]
+                ],
+                "totalItems": 1,
             }
             )))
             .expect(1)
             .mount(&mock_server)
             .await;
 
-        let token = get_all_identities("token", mock_server.uri(), "accountID".to_string()).await;
-        assert!(token.is_ok());
+        let response =
+            get_all_identities("token", mock_server.uri(), "accountID".to_string()).await;
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_identities_request_with_pagination() {
+        let mock_server = MockServer::start().await;
+        //pagination mock
+        Mock::given(path("/api/v4/accounts/accountID/identities"))
+            .and(method("GET"))
+            .and(query_param("Take", "100"))
+            .and(query_param("Continuation", ""))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(
+            {
+                "identities":[
+                    {
+                        "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                        "companyData": {
+                        "approvers": []
+                        },
+                        "createdBy": "SystemService",
+                        "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                        "displayName": "John Doe",
+                        "eTag": "2",
+                        "email": "john.doe@example.com",
+                        "firstName": "John",
+                        "hasLicensedVehicles": false,
+                        "hasVehicles": false,
+                        "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                        "identityType": "Employee",
+                        "isDeleted": false,
+                        "isSCSaaS": true,
+                        "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                        "lastModifiedBy": "phtephen@example.com",
+                        "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                        "lastModifiedByPrincipalType": "User",
+                        "lastName": "Doe",
+                        "ordinal": 2,
+                        "privateData": {},
+                        "status": "Inactive",
+                        "systemData": {
+                        "customFields": [],
+                        "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                        "provisioningAttributes": [],
+                        "resourceFilters": []
+                        }
+                    },
+                ],
+                "totalItems": 1,
+                "continuation": "continuationString"
+            }
+            )))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        // Normal mock
+        Mock::given(path("/api/v4/accounts/accountID/identities"))
+            .and(method("GET"))
+            .and(query_param("Take", "100"))
+            .and(query_param("Continuation", "continuationString"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(
+            {
+                "identities":[
+                    {
+                        "accountId": "abcdefgdh-fcfc-0000-abdc-afafafafafafaf",
+                        "companyData": {
+                        "approvers": []
+                        },
+                        "createdBy": "SystemService",
+                        "creationDateUtc": "2025-07-02T14:52:39.0438424Z",
+                        "displayName": "John Doe",
+                        "eTag": "2",
+                        "email": "john.doe@example.com",
+                        "firstName": "John",
+                        "hasLicensedVehicles": false,
+                        "hasVehicles": false,
+                        "identityId": "d2c68f36-fb4e-4606-b831-617f7ab06094",
+                        "identityType": "Employee",
+                        "isDeleted": false,
+                        "isSCSaaS": true,
+                        "lastModificationDateUtc": "2026-02-27T09:07:19.1960627Z",
+                        "lastModifiedBy": "phtephen@example.com",
+                        "lastModifiedByIdentityId": "bc1b3d75-f2a5-4aee-8c13-ad1dfe3b54cb",
+                        "lastModifiedByPrincipalType": "User",
+                        "lastName": "Doe",
+                        "ordinal": 2,
+                        "privateData": {},
+                        "status": "Inactive",
+                        "systemData": {
+                        "customFields": [],
+                        "horizonId": "5a56e94b92964d6da3d57258508b42e7",
+                        "provisioningAttributes": [],
+                        "resourceFilters": []
+                        }
+                    },
+                ],
+                "totalItems": 1,
+            }
+            )))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let response =
+            get_all_identities("token", mock_server.uri(), "accountID".to_string()).await;
+        assert!(response.is_ok());
     }
 
     #[tokio::test]
