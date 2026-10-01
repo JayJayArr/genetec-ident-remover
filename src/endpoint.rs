@@ -3,8 +3,17 @@ use oauth2::basic::{BasicClient, BasicTokenType};
 use oauth2::{ClientId, ClientSecret, EmptyExtraTokenFields, StandardTokenResponse, TokenUrl};
 use reqwest::Client;
 use reqwest::StatusCode;
+use serde::Deserialize;
 use serde_json::Value;
 use tracing::{error, info};
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IdentityResponse {
+    identities: Vec<Value>,
+    total_items: Option<u64>,
+    continuation: Option<String>,
+}
 
 pub async fn get_bearer_token(
     client_id: String,
@@ -42,22 +51,34 @@ pub async fn get_all_identities(
         identity_base_url, account_id
     );
 
-    info!("Getting identities for AccountID {}", account_id);
-
     let identity_client = Client::new();
-    let response = identity_client
-        .get(url)
-        .bearer_auth(bearer_token)
-        .send()
-        .await?;
-    let body = response.text().await?;
-    let json: serde_json::Value = serde_json::from_str(&body)?;
-    Ok(json
-        .get("identities")
-        .expect("Could not find field \"identities\" in the json response")
-        .as_array()
-        .expect("Could not convert the Identities in an array")
-        .clone())
+    let mut continuation = String::new();
+    let mut identities = Vec::new();
+    let mut total;
+
+    info!("Getting identities for AccountID {}", account_id);
+    loop {
+        let response = identity_client
+            .get(&url)
+            .bearer_auth(bearer_token)
+            .query(&[("Take", 100)])
+            .query(&[("Continuation", continuation)])
+            .send()
+            .await?
+            .json::<IdentityResponse>()
+            .await?;
+        identities.extend(response.identities);
+        total = response
+            .total_items
+            .expect("Could not find total value in response");
+        match response.continuation {
+            Some(new_continuation_token) => continuation = new_continuation_token,
+            None => break,
+        }
+    }
+
+    info!("Total: {}, Length: {}", total, identities.len());
+    Ok(identities)
 }
 pub async fn delete_identities(
     bearer_token: &str,
