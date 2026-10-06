@@ -92,10 +92,12 @@ pub async fn delete_identities(
     concurrency: usize,
 ) -> anyhow::Result<()> {
     info!("Deleting identities for AccountID {}...", account_id);
+    let pb = ProgressBar::new(identities.len().try_into().unwrap());
 
     let client = Client::new();
     stream::iter(identities)
         .for_each_concurrent(concurrency, |identity_id| {
+            pb.inc(1);
             delete_identity_callback(
                 &client,
                 identity_base_url.clone(),
@@ -105,6 +107,7 @@ pub async fn delete_identities(
             )
         })
         .await;
+    pb.finish();
     Ok(())
 }
 async fn delete_identity_callback(
@@ -132,7 +135,7 @@ async fn delete_identity_callback(
                         .expect("Could not get http response text from bad request")
                 );
             } else {
-                info!("successful deletion of {}", identity_id);
+                // info!("successful deletion of {}", identity_id);
             }
         }
 
@@ -148,10 +151,12 @@ pub async fn delete_pictures(
     concurrency: usize,
 ) -> anyhow::Result<()> {
     info!("Deleting all pictures for AccountID {}...", account_id);
+    let pb = ProgressBar::new(identities.len().try_into().unwrap());
 
     let client = Client::new();
     stream::iter(identities)
         .for_each_concurrent(concurrency, |identity_id| {
+            pb.inc(1);
             delete_pictures_callback(
                 &client,
                 identity_base_url.clone(),
@@ -161,6 +166,7 @@ pub async fn delete_pictures(
             )
         })
         .await;
+    pb.finish();
     Ok(())
 }
 
@@ -188,7 +194,7 @@ async fn delete_pictures_callback(
                         .expect("Could not get http response text from bad request")
                 );
             } else {
-                info!("successful deletion of picture from {}", identity_id);
+                // info!("successful deletion of picture from {}", identity_id);
             }
         }
 
